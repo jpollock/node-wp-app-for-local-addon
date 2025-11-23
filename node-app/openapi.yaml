@@ -1,0 +1,903 @@
+openapi: 3.0.0
+info:
+  title: Node WordPress Bridge API
+  description: Node.js service bridge for WordPress integration in Local
+  version: 1.0.0
+  contact:
+    name: Kitchen Sink Support
+    email: support@kitchensink.local
+
+servers:
+  - url: http://localhost:{port}
+    description: Local development server
+    variables:
+      port:
+        default: '3000'
+        description: Port assigned by Local
+
+tags:
+  - name: Health
+    description: Service health and status endpoints
+  - name: WordPress
+    description: WordPress integration endpoints
+  - name: Database
+    description: Database operations
+  - name: Cache
+    description: Cache management
+  - name: Files
+    description: File system operations
+  - name: Logs
+    description: Log management
+
+paths:
+  /:
+    get:
+      tags:
+        - Health
+      summary: Service information
+      description: Returns basic service information and status
+      operationId: getServiceInfo
+      responses:
+        '200':
+          description: Service information
+          content:
+            text/html:
+              schema:
+                type: string
+                example: <h1>Node-WordPress Bridge</h1>
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Returns service health status and metrics
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/wordpress/info:
+    get:
+      tags:
+        - WordPress
+      summary: Get WordPress site info
+      description: Returns information about the connected WordPress site
+      operationId: getWordPressInfo
+      responses:
+        '200':
+          description: WordPress site information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WordPressInfo'
+        '500':
+          description: Failed to retrieve WordPress info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/wordpress/options:
+    get:
+      tags:
+        - WordPress
+      summary: List WordPress options
+      description: Retrieves WordPress options from the database
+      operationId: listOptions
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search filter for option names
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 1000
+          description: Maximum number of options to return
+      responses:
+        '200':
+          description: WordPress options retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OptionsResponse'
+        '500':
+          description: Database query failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/wordpress/options/{optionName}:
+    get:
+      tags:
+        - WordPress
+      summary: Get WordPress option
+      description: Retrieves a specific WordPress option value
+      operationId: getOption
+      parameters:
+        - in: path
+          name: optionName
+          required: true
+          schema:
+            type: string
+          description: Option name
+      responses:
+        '200':
+          description: Option value retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OptionResponse'
+        '404':
+          description: Option not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - WordPress
+      summary: Update WordPress option
+      description: Updates a WordPress option value
+      operationId: updateOption
+      parameters:
+        - in: path
+          name: optionName
+          required: true
+          schema:
+            type: string
+          description: Option name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - value
+              properties:
+                value:
+                  description: New option value
+                autoload:
+                  type: string
+                  enum: ['yes', 'no']
+                  description: Whether to autoload the option
+      responses:
+        '200':
+          description: Option updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '500':
+          description: Update failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/wordpress/users:
+    get:
+      tags:
+        - WordPress
+      summary: List WordPress users
+      description: Retrieves list of WordPress users
+      operationId: listUsers
+      parameters:
+        - in: query
+          name: role
+          schema:
+            type: string
+          description: Filter by user role
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 500
+          description: Maximum number of users to return
+      responses:
+        '200':
+          description: Users retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersResponse'
+        '500':
+          description: Query failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/wordpress/posts:
+    get:
+      tags:
+        - WordPress
+      summary: List WordPress posts
+      description: Retrieves list of WordPress posts with optional filters
+      operationId: listPosts
+      parameters:
+        - in: query
+          name: post_type
+          schema:
+            type: string
+            default: post
+          description: Post type to retrieve
+        - in: query
+          name: post_status
+          schema:
+            type: string
+            default: publish
+          description: Post status filter
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Maximum number of posts to return
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Number of posts to skip
+      responses:
+        '200':
+          description: Posts retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostsResponse'
+        '500':
+          description: Query failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/database/query:
+    post:
+      tags:
+        - Database
+      summary: Execute database query
+      description: Executes a raw SQL query on the WordPress database (use with caution)
+      operationId: executeQuery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  description: SQL query to execute
+                params:
+                  type: array
+                  items:
+                    oneOf:
+                      - type: string
+                      - type: number
+                      - type: boolean
+                      - type: 'null'
+                  description: Query parameters for prepared statements
+      responses:
+        '200':
+          description: Query executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+        '400':
+          description: Invalid query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Query execution failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cache/clear:
+    post:
+      tags:
+        - Cache
+      summary: Clear cache
+      description: Clears WordPress object cache and optionally other caches
+      operationId: clearCache
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [all, object, transient, page]
+                  default: all
+                  description: Type of cache to clear
+      responses:
+        '200':
+          description: Cache cleared successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '500':
+          description: Cache clear failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cache/stats:
+    get:
+      tags:
+        - Cache
+      summary: Get cache statistics
+      description: Returns cache statistics and usage information
+      operationId: getCacheStats
+      responses:
+        '200':
+          description: Cache statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheStatsResponse'
+
+  /api/files/list:
+    get:
+      tags:
+        - Files
+      summary: List files
+      description: Lists files in a WordPress directory
+      operationId: listFiles
+      parameters:
+        - in: query
+          name: path
+          schema:
+            type: string
+            default: /
+          description: Directory path relative to WordPress root
+        - in: query
+          name: recursive
+          schema:
+            type: boolean
+            default: false
+          description: Whether to list files recursively
+        - in: query
+          name: pattern
+          schema:
+            type: string
+          description: File name pattern filter (glob)
+      responses:
+        '200':
+          description: Files listed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilesListResponse'
+        '400':
+          description: Invalid path
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/files/read:
+    get:
+      tags:
+        - Files
+      summary: Read file content
+      description: Reads content of a file in the WordPress directory
+      operationId: readFile
+      parameters:
+        - in: query
+          name: path
+          required: true
+          schema:
+            type: string
+          description: File path relative to WordPress root
+      responses:
+        '200':
+          description: File content retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileContentResponse'
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/files/write:
+    post:
+      tags:
+        - Files
+      summary: Write file
+      description: Writes content to a file in the WordPress directory
+      operationId: writeFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - path
+                - content
+              properties:
+                path:
+                  type: string
+                  description: File path relative to WordPress root
+                content:
+                  type: string
+                  description: File content to write
+                encoding:
+                  type: string
+                  default: utf8
+                  description: File encoding
+      responses:
+        '200':
+          description: File written successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '500':
+          description: Write failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/logs:
+    get:
+      tags:
+        - Logs
+      summary: Get logs
+      description: Retrieves service and WordPress logs
+      operationId: getLogs
+      parameters:
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: [service, wordpress, php, all]
+            default: all
+          description: Type of logs to retrieve
+        - in: query
+          name: lines
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 10000
+          description: Number of log lines to return
+        - in: query
+          name: since
+          schema:
+            type: string
+            format: date-time
+          description: Return logs since this timestamp
+      responses:
+        '200':
+          description: Logs retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogsResponse'
+
+  /api/broadcast:
+    post:
+      tags:
+        - WordPress
+      summary: Broadcast message to WordPress
+      description: Sends a broadcast message to WordPress admin
+      operationId: broadcastMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  description: Message to broadcast
+                type:
+                  type: string
+                  enum: [info, success, warning, error]
+                  default: info
+                  description: Message type
+                duration:
+                  type: integer
+                  default: 5000
+                  description: Display duration in milliseconds
+      responses:
+        '200':
+          description: Message broadcast successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - service
+        - port
+        - uptime
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        service:
+          type: string
+          default: node-wordpress-bridge
+        port:
+          type: integer
+        uptime:
+          type: number
+          description: Service uptime in seconds
+        memory:
+          type: object
+          properties:
+            rss:
+              type: integer
+            heapTotal:
+              type: integer
+            heapUsed:
+              type: integer
+            external:
+              type: integer
+        wordpress:
+          type: object
+          properties:
+            connected:
+              type: boolean
+            url:
+              type: string
+            version:
+              type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    WordPressInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Site name
+        url:
+          type: string
+          description: Site URL
+        home:
+          type: string
+          description: Home URL
+        description:
+          type: string
+          description: Site description
+        version:
+          type: string
+          description: WordPress version
+        language:
+          type: string
+          description: Site language
+        charset:
+          type: string
+          description: Database charset
+        theme:
+          type: object
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+            parent:
+              type: string
+        plugins:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              name:
+                type: string
+              version:
+                type: string
+              active:
+                type: boolean
+        users_count:
+          type: integer
+        posts_count:
+          type: integer
+
+    OptionsResponse:
+      type: object
+      required:
+        - options
+        - total
+      properties:
+        options:
+          type: array
+          items:
+            type: object
+            properties:
+              option_name:
+                type: string
+              option_value:
+                type: string
+              autoload:
+                type: string
+                enum: ['yes', 'no']
+        total:
+          type: integer
+
+    OptionResponse:
+      type: object
+      required:
+        - option_name
+        - option_value
+      properties:
+        option_name:
+          type: string
+        option_value:
+          oneOf:
+            - type: string
+            - type: object
+            - type: array
+            - type: number
+            - type: boolean
+            - type: 'null'
+        autoload:
+          type: string
+          enum: ['yes', 'no']
+
+    UsersResponse:
+      type: object
+      required:
+        - users
+        - total
+      properties:
+        users:
+          type: array
+          items:
+            type: object
+            properties:
+              ID:
+                type: integer
+              user_login:
+                type: string
+              user_email:
+                type: string
+              user_registered:
+                type: string
+                format: date-time
+              display_name:
+                type: string
+              roles:
+                type: array
+                items:
+                  type: string
+        total:
+          type: integer
+
+    PostsResponse:
+      type: object
+      required:
+        - posts
+        - total
+      properties:
+        posts:
+          type: array
+          items:
+            type: object
+            properties:
+              ID:
+                type: integer
+              post_title:
+                type: string
+              post_status:
+                type: string
+              post_type:
+                type: string
+              post_date:
+                type: string
+                format: date-time
+              post_modified:
+                type: string
+                format: date-time
+              post_author:
+                type: integer
+              post_content:
+                type: string
+              post_excerpt:
+                type: string
+              guid:
+                type: string
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+
+    QueryResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        affected_rows:
+          type: integer
+        insert_id:
+          type: integer
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+
+    CacheStatsResponse:
+      type: object
+      properties:
+        hits:
+          type: integer
+        misses:
+          type: integer
+        size:
+          type: integer
+          description: Cache size in bytes
+        keys:
+          type: integer
+          description: Number of cache keys
+        groups:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              count:
+                type: integer
+              size:
+                type: integer
+
+    FilesListResponse:
+      type: object
+      required:
+        - files
+        - path
+      properties:
+        path:
+          type: string
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              path:
+                type: string
+              type:
+                type: string
+                enum: [file, directory]
+              size:
+                type: integer
+              modified:
+                type: string
+                format: date-time
+              permissions:
+                type: string
+
+    FileContentResponse:
+      type: object
+      required:
+        - path
+        - content
+      properties:
+        path:
+          type: string
+        content:
+          type: string
+        encoding:
+          type: string
+        size:
+          type: integer
+        modified:
+          type: string
+          format: date-time
+
+    LogsResponse:
+      type: object
+      required:
+        - logs
+        - type
+      properties:
+        type:
+          type: string
+        logs:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              level:
+                type: string
+                enum: [debug, info, warning, error]
+              message:
+                type: string
+              source:
+                type: string
+
+    SuccessResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          default: true
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
