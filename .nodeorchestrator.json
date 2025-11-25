@@ -1,0 +1,12 @@
+  {
+    "wordpress": {
+      "plugins": [
+        {
+          "source": "bundled",
+          "path": "wp-plugin",
+          "slug": "node-service-bridge",
+          "autoActivate": true
+        }
+      ]
+    }
+  }
