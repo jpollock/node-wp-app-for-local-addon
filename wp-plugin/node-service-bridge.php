@@ -527,8 +527,7 @@ new NodeServiceBridge();
 
 // Optional: Add custom WP-CLI commands if WP-CLI is available
 if (defined('WP_CLI') && WP_CLI) {
-    WP_CLI::add_command('node-service', 'NodeServiceCLI');
-
+    // Define the class FIRST, then register the command
     class NodeServiceCLI {
         /**
          * Check Node service status
@@ -565,4 +564,7 @@ if (defined('WP_CLI') && WP_CLI) {
             }
         }
     }
+
+    // Register the command AFTER the class is defined
+    WP_CLI::add_command('node-service', 'NodeServiceCLI');
 }
